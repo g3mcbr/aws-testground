@@ -1,0 +1,8 @@
+.terraform
+*.tfstate
+*.tfstate.backup
+*.out
+*.old
+keys/
+pushimage.sh
+notes.txt
