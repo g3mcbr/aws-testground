@@ -91,8 +91,7 @@ resource "aws_alb_target_group" "tg" {
 /*
  * Create listener rule for hostname routing to new target group
  */
-resource "aws_alb_listener_rule" "tg" {
-  #  listener_arn = "${data.terraform_remote_state.newvpc.alb_https_listener_arn}"
+resource "aws_alb_listener_rule" "http" {
   listener_arn = "${aws_alb_listener.http_listener.arn}"
   priority     = "204"
 
@@ -109,11 +108,11 @@ resource "aws_alb_listener_rule" "tg" {
 
 resource "aws_alb_listener_rule" "https" {
   listener_arn = "${data.terraform_remote_state.newvpc.alb_https_listener_arn}"
-  priority     = "204"
+  priority     = "205"
 
   action {
     type             = "forward"
-    target_group_arn = "${aws_alb_target_group.tg.arn}"
+    target_group_arn = "${data.terraform_remote_state.newvpc.default_tg_arn}"
   }
 
   condition {
@@ -123,7 +122,7 @@ resource "aws_alb_listener_rule" "https" {
 }
 
 /*
- * Create task definition template
+ * Create task definition templates
  */
 data "template_file" "task_def" {
   template = "${file("${path.module}/task-def.json")}"
@@ -131,20 +130,13 @@ data "template_file" "task_def" {
   vars {}
 }
 
-# below uses sil service module
-module "ecsservice" {
-  source             = "github.com/silinternational/terraform-modules//aws/ecs/service-only"
-  cluster_id         = "${data.terraform_remote_state.newvpc.ecs_cluster_id}"
-  service_name       = "${var.app_name}"
-  service_env        = "${data.terraform_remote_state.newvpc.app_env}"
-  container_def_json = "${data.template_file.task_def.rendered}"
-  desired_count      = "${var.desired_count}"
-  tg_arn             = "${aws_alb_target_group.tg.arn}"
-  lb_container_name  = "${var.container_name}"
-  lb_container_port  = "${var.container_port}"
-  ecsServiceRole_arn = "${data.terraform_remote_state.newvpc.ecsServiceRole_arn}"
+data "template_file" "task_def_http_to_https" {
+  template = "${file("${path.module}/task-def-http-to-https.json")}"
+
+  vars {}
 }
 
+# below uses sil service module
 module "ecsservice_https" {
   source             = "github.com/silinternational/terraform-modules//aws/ecs/service-only"
   cluster_id         = "${data.terraform_remote_state.newvpc.ecs_cluster_id}"
@@ -152,8 +144,21 @@ module "ecsservice_https" {
   service_env        = "${data.terraform_remote_state.newvpc.app_env}"
   container_def_json = "${data.template_file.task_def.rendered}"
   desired_count      = "${var.desired_count}"
-  tg_arn             = "${aws_alb_target_group.tg.arn}"
+  tg_arn             = "${data.terraform_remote_state.newvpc.default_tg_arn}"
   lb_container_name  = "${var.container_name}"
+  lb_container_port  = "${var.container_port}"
+  ecsServiceRole_arn = "${data.terraform_remote_state.newvpc.ecsServiceRole_arn}"
+}
+
+module "ecsservice_http" {
+  source             = "github.com/silinternational/terraform-modules//aws/ecs/service-only"
+  cluster_id         = "${data.terraform_remote_state.newvpc.ecs_cluster_id}"
+  service_name       = "${var.app_name}-http"
+  service_env        = "${data.terraform_remote_state.newvpc.app_env}"
+  container_def_json = "${data.template_file.task_def_http_to_https.rendered}"
+  desired_count      = "${var.desired_count}"
+  tg_arn             = "${aws_alb_target_group.tg.arn}"
+  lb_container_name  = "http-to-https"
   lb_container_port  = "${var.container_port}"
   ecsServiceRole_arn = "${data.terraform_remote_state.newvpc.ecsServiceRole_arn}"
 }

@@ -84,3 +84,7 @@ output "ecsTaskRole_arn" {
 output "alb_https_listener_arn" {
   value = "${module.alb.https_listener_arn}"
 }
+
+output "default_tg_arn" {
+  value = "${module.alb.default_tg_arn}"
+}
