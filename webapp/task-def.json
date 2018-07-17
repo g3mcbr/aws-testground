@@ -1,7 +1,7 @@
 [
   {
     "name": "web",
-    "image": "580573161836.dkr.ecr.us-east-1.amazonaws.com/mynginx",
+    "image": "580573161836.dkr.ecr.us-east-1.amazonaws.com/lame",
     "cpu": 10,
     "memory": 64,
     "environment": [],
