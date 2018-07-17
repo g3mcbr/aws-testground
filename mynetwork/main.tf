@@ -157,6 +157,41 @@ resource "aws_route53_record" "www" {
   records = ["${module.alb.dns_name}"]
 }
 
+###############################################
+/*
+ * Create http target group for ALB
+ */
+resource "aws_alb_target_group" "default_http_tg" {
+  name                 = "${replace("tg-${var.app_name}-http-${var.app_env}", "/(.{0,32})(.*)/", "$1")}"
+  port                 = "80"
+  protocol             = "HTTP"
+  vpc_id               = "${module.vpc.id}"
+  deregistration_delay = "30"
+
+  stickiness {
+    type = "lb_cookie"
+  }
+
+  health_check {
+    path    = "/"
+    matcher = "301,200"
+  }
+}
+
+/*
+ * Create http listener for ALB
+ */
+resource "aws_alb_listener" "http_listener" {
+  load_balancer_arn = "${module.alb.arn}"
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    target_group_arn = "${aws_alb_target_group.default_http_tg.arn}"
+    type             = "forward"
+  }
+}
+
 terraform {
   backend "s3" {
     bucket = "tf-up-and-running-state"

@@ -57,54 +57,54 @@ data "terraform_remote_state" "cluster" {
 #   container_port     = "${var.container_port}"
 # }
 
-resource "aws_alb_listener" "http_listener" {
-  load_balancer_arn = "${data.terraform_remote_state.newvpc.external_alb_arn}"
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    target_group_arn = "${aws_alb_target_group.tg.arn}"
-    type             = "forward"
-  }
-}
-
-/*
- * Create target group for ALB
- */
-resource "aws_alb_target_group" "tg" {
-  name                 = "${replace("tg-${var.app_name}-${data.terraform_remote_state.newvpc.app_env}", "/(.{0,32})(.*)/", "$1")}"
-  port                 = "80"
-  protocol             = "HTTP"
-  vpc_id               = "${data.terraform_remote_state.newvpc.vpc_id}"
-  deregistration_delay = "30"
-
-  stickiness {
-    type = "lb_cookie"
-  }
-
-  health_check {
-    path    = "/"
-    matcher = "301,200"
-  }
-}
+# resource "aws_alb_listener" "http_listener" {
+#   load_balancer_arn = "${data.terraform_remote_state.newvpc.external_alb_arn}"
+#   port              = "80"
+#   protocol          = "HTTP"
+#
+#   default_action {
+#     target_group_arn = "${aws_alb_target_group.tg.arn}"
+#     type             = "forward"
+#   }
+# }
+#
+# /*
+#  * Create target group for ALB
+#  */
+# resource "aws_alb_target_group" "tg" {
+#   name                 = "${replace("tg-${var.app_name}-${data.terraform_remote_state.newvpc.app_env}", "/(.{0,32})(.*)/", "$1")}"
+#   port                 = "80"
+#   protocol             = "HTTP"
+#   vpc_id               = "${data.terraform_remote_state.newvpc.vpc_id}"
+#   deregistration_delay = "30"
+#
+#   stickiness {
+#     type = "lb_cookie"
+#   }
+#
+#   health_check {
+#     path    = "/"
+#     matcher = "301,200"
+#   }
+# }
 
 /*
  * Create listener rule for hostname routing to new target group
  */
-resource "aws_alb_listener_rule" "http" {
-  listener_arn = "${aws_alb_listener.http_listener.arn}"
-  priority     = "204"
-
-  action {
-    type             = "forward"
-    target_group_arn = "${aws_alb_target_group.tg.arn}"
-  }
-
-  condition {
-    field  = "host-header"
-    values = ["${var.subdomain}.${var.base_domain}"]
-  }
-}
+# resource "aws_alb_listener_rule" "http" {
+#   listener_arn = "${aws_alb_listener.http_listener.arn}"
+#   priority     = "204"
+#
+#   action {
+#     type             = "forward"
+#     target_group_arn = "${aws_alb_target_group.tg.arn}"
+#   }
+#
+#   condition {
+#     field  = "host-header"
+#     values = ["${var.subdomain}.${var.base_domain}"]
+#   }
+# }
 
 resource "aws_alb_listener_rule" "https" {
   listener_arn = "${data.terraform_remote_state.newvpc.alb_https_listener_arn}"
@@ -130,11 +130,11 @@ data "template_file" "task_def" {
   vars {}
 }
 
-data "template_file" "task_def_http_to_https" {
-  template = "${file("${path.module}/task-def-http-to-https.json")}"
-
-  vars {}
-}
+# data "template_file" "task_def_http_to_https" {
+#   template = "${file("${path.module}/task-def-http-to-https.json")}"
+#
+#   vars {}
+# }
 
 # below uses sil service module
 module "ecsservice_https" {
@@ -155,9 +155,9 @@ module "ecsservice_http" {
   cluster_id         = "${data.terraform_remote_state.newvpc.ecs_cluster_id}"
   service_name       = "${var.app_name}-http"
   service_env        = "${data.terraform_remote_state.newvpc.app_env}"
-  container_def_json = "${data.template_file.task_def_http_to_https.rendered}"
+  container_def_json = "${file("${path.module}/task-def-http-to-https.json")}"
   desired_count      = "${var.desired_count}"
-  tg_arn             = "${aws_alb_target_group.tg.arn}"
+  tg_arn             = "${data.terraform_remote_state.newvpc.alb_default_http_tg_arn}"
   lb_container_name  = "http-to-https"
   lb_container_port  = "${var.container_port}"
   ecsServiceRole_arn = "${data.terraform_remote_state.newvpc.ecsServiceRole_arn}"

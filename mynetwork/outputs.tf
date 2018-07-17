@@ -88,3 +88,11 @@ output "alb_https_listener_arn" {
 output "default_tg_arn" {
   value = "${module.alb.default_tg_arn}"
 }
+
+output "alb_http_listener_arn" {
+  value = "${aws_alb_listener.http_listener.arn}"
+}
+
+output "alb_default_http_tg_arn" {
+  value = "${aws_alb_target_group.default_http_tg.arn}"
+}
