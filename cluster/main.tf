@@ -14,32 +14,40 @@ data "terraform_remote_state" "newvpc" {
   }
 }
 
-module "cluster" {
-  source             = "../modules/compute/cluster"
-  instance_type      = "${var.instance_type}"
-  app_name           = "${data.terraform_remote_state.newvpc.app_name}"
-  app_env            = "${data.terraform_remote_state.newvpc.app_env}"
-  cluster_name       = "${data.terraform_remote_state.newvpc.ecs_cluster_name}"
-  ami_id             = "${data.terraform_remote_state.newvpc.ami_id}"
-  vpc_id             = "${data.terraform_remote_state.newvpc.vpc_id}"
-  sg_groups          = ["${data.terraform_remote_state.newvpc.vpc_default_sg_id}"]
-  aws_zones          = "${data.terraform_remote_state.newvpc.aws_zones}"
-  private_subnet_ids = "${data.terraform_remote_state.newvpc.private_subnet_ids}"
-  key_name           = "${var.key_name}"
+# module "cluster" {
+#   source             = "../modules/compute/cluster"
+#   instance_type      = "${var.instance_type}"
+#   app_name           = "${data.terraform_remote_state.newvpc.app_name}"
+#   app_env            = "${data.terraform_remote_state.newvpc.app_env}"
+#   cluster_name       = "${data.terraform_remote_state.newvpc.ecs_cluster_name}"
+#   ami_id             = "${data.terraform_remote_state.newvpc.ami_id}"
+#   vpc_id             = "${data.terraform_remote_state.newvpc.vpc_id}"
+#   sg_groups          = ["${data.terraform_remote_state.newvpc.vpc_default_sg_id}"]
+#   aws_zones          = "${data.terraform_remote_state.newvpc.aws_zones}"
+#   private_subnet_ids = "${data.terraform_remote_state.newvpc.private_subnet_ids}"
+#   key_name           = "${var.key_name}"
+#
+#   #ip_value                  = 100
+#   user_data_script = "ecs_user_data.sh"
+#
+#   #  instance_count            = 2
+#   instance_count       = "${length(data.terraform_remote_state.newvpc.private_subnet_ids)}"
+#   iam_instance_profile = "${data.terraform_remote_state.newvpc.ecs_instance_profile_id}"
+#   vol_count            = 0
+#   vol_id               = []
+#
+#   tags = {
+#     "Name"     = "docker_ecs_host"
+#     "logstash" = "lsnode"
+#   }
+# }
 
-  #ip_value                  = 100
-  user_data_script = "ecs_user_data.sh"
-
-  #  instance_count            = 2
-  instance_count       = "${length(data.terraform_remote_state.newvpc.private_subnet_ids)}"
-  iam_instance_profile = "${data.terraform_remote_state.newvpc.ecs_instance_profile_id}"
-  vol_count            = 0
-  vol_id               = []
-
-  tags = {
-    "Name"     = "docker_ecs_host"
-    "logstash" = "lsnode"
-  }
+module "ecsasg" {
+  source          = "silinternational/ecs-asg/aws"
+  version         = "1.0.0"
+  cluster_name    = "${var.app_name}-${var.app_env}"
+  subnet_ids      = ["${data.terraform_remote_state.newvpc.private_subnet_ids}"]
+  security_groups = ["${data.terraform_remote_state.newvpc.vpc_default_sg_id}"]
 }
 
 terraform {
